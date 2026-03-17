@@ -1,0 +1,116 @@
+# ==============================================================================
+# GTDB-Tk Database Download Workflow
+# ==============================================================================
+
+# Bypass the download-db.sh script and do the download manually by installing aria2c
+conda install -c conda-forge aria2 -y
+
+# Move into the target directory
+cd /data/databases/gtdbtk_db
+
+# Execute the highly optimized aria2c command for multi-stream connection; route to the nearest mirror in Australia instead of Denmark
+aria2c \
+  --max-connection-per-server=16 \
+  --split=16 \
+  --min-split-size=1M \
+  --continue=true \	
+  --summary-interval=60 \
+  "https://data.ace.uq.edu.au/public/gtdb/data/releases/release226/226.0/auxillary_files/gtdbtk_package/full_package/gtdbtk_r226_data.tar.gz"
+
+# Alternative mirror - test this one too
+aria2c \
+  --max-connection-per-server=16 \
+  --split=16 \
+  --min-split-size=1M \
+  --continue=true \
+  --summary-interval=60 \
+  "https://data.gtdb.ecogenomic.org/releases/release226/226.0/auxillary_files/gtdbtk_package/full_package/gtdbtk_r226_data.tar.gz"
+
+# Manual tarball extraction — consider using pigz for faster decompression if available
+tar -xvzf gtdbtk_r226_data.tar.gz -C /data/databases/gtdbtk_db/ --strip-components=1
+
+# Or with pigz (much faster on multi-core machines):
+pigz -dc gtdbtk_r226_data.tar.gz | tar -xvf - -C /data/databases/gtdbtk_db/ --strip-components=1
+
+# If we need resuming instead of starting over with wget
+wget -c https://data.ace.uq.edu.au/public/gtdb/data/releases/release226/226.0/auxillary_files/gtdbtk_package/full_package/gtdbtk_r226_data.tar.gz
+
+# Or with aria2c
+aria2c \
+  --continue=true \
+  --max-connection-per-server=16 \
+  --split=16 \
+  --min-split-size=1M \
+  --summary-interval=60 \
+  "https://data.ace.uq.edu.au/public/gtdb/data/releases/release226/226.0/auxillary_files/gtdbtk_package/full_package/gtdbtk_r226_data.tar.gz"
+
+# Tell GTDB-Tk where to look
+echo 'export GTDBTK_DATA_PATH="/data/databases/gtdbtk_db"' >> ~/.bashrc
+source ~/.bashrc
+
+# ==============================================================================
+# Bakta Database Download Workflow
+# ==============================================================================
+
+# Move into the target directory
+cd /data/databases/bakta_db
+
+# This will download the Full version of the Bakta database (recommended). Just like before, if the download drops, you can run this exact same command again to resume (--continue=true).
+aria2c \
+  --continue=true \
+  --max-connection-per-server=16 \
+  --split=16 \
+  --min-split-size=1M \
+  --summary-interval=60 \
+  -o bakta_db.tar.gz \
+  "https://zenodo.org/records/10522951/files/db.tar.gz"
+
+# Extract the Bakta database
+pigz -dc bakta_db.tar.gz | tar -xvf - -C /data/databases/gtdbtk_db/ --strip-components=1
+
+# Tell Bakta where the database is
+echo 'export BAKTA_DB="/data/databases/bakta_db"' >> ~/.bashrc
+source ~/.bashrc
+
+# ==============================================================================
+# GetOrganelle Setup & Database Download
+# ==============================================================================
+
+mamba install -c conda-forge -c bioconda getorganelle
+get_organelle_config.py --config-dir /data/databases/getorganelle_db -a animal_mt,embplant_mt,embplant_pt,fungus_mt,fungus_nr
+echo 'export GETORG_PATH=/data/databases/getorganelle_db' >> ~/.bashrc
+source ~/.bashrc
+
+# ==============================================================================
+# Kraken2 Database Download
+# ==============================================================================
+
+# Go into Kraken2 database directory
+cd /data/databases/kraken2_db
+
+# Option A: The Full Standard Database (~75 GB to download, requires >60 GB RAM to run)
+aria2c \
+  --continue=true \
+  --max-connection-per-server=16 \
+  --split=16 \
+  --min-split-size=1M \
+  --summary-interval=60 \
+  -o k2_standard.tar.gz \
+  "https://genome-idx.s3.amazonaws.com/kraken/k2_standard_20240904.tar.gz"
+
+# Extract the files (they will populate the current kraken2_db directory)
+tar -xvzf k2_standard.tar.gz 
+# (Or whatever you named the output file)
+
+echo 'export KRAKEN2_DB_PATH="/data/databases/kraken2_db"' >> ~/.bashrc
+source ~/.bashrc
+
+# ==============================================================================
+# Plassembler Database Download
+# ==============================================================================
+
+# Just run the native script
+plassembler download -d /data/databases/plassembler_db
+
+echo 'export plassembler_db="/data/databases/plassembler_db"' >> ~/.bashrc
+source ~/.bashrc
